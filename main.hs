@@ -1,10 +1,11 @@
 import Data.Char (isDigit)
 import Data.List (transpose)
+import Debug.Trace (trace)
 import System.IO ()
 
 -- Size of the tic-tac-toe grid.
 size :: Int
-size = 3
+size = 9
 
 empty :: Grid
 empty = replicate size (replicate size B)
@@ -16,7 +17,12 @@ data Player
   = O -- nought
   | B -- blank
   | X -- cross
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
+
+instance Show Player where
+  show O = "O"
+  show B = " "
+  show X = "X"
 
 -- a NxN grid of Player values.
 type Grid = [[Player]]
@@ -54,21 +60,16 @@ won g = wins O g || wins X g
 
 -- Output a grid to the console
 putGrid :: Grid -> IO ()
-putGrid =
-  putStrLn . unlines . concat . interleave bar . map showRow
-  where
-    bar = [replicate ((size * 4) - 1) '-']
+putGrid = putStrLn . unlines . concat . interleave bar . map showRow
+  where bar = [swap 3 '┼' $ replicate ((size * 4) - 1) '─']
+
+swap :: Show a => Int -> a -> [a] -> [a]
+swap n x xs | length xs <= n = xs
+swap n x xs = front ++ [x] ++ swap n x back
+  where (front, _ : back) = splitAt n xs
 
 showRow :: [Player] -> [String]
-showRow = beside . interleave bar . map showPlayer
-  where
-    beside = foldr1 (zipWith (++))
-    bar = replicate 3 "|"
-
-showPlayer :: Player -> [String]
-showPlayer O = ["   ", " O ", "   "]
-showPlayer B = ["   ", "   ", "   "]
-showPlayer X = ["   ", " X ", "   "]
+showRow = (: []) . concat . interleave "│" . map (\x -> " " ++ show x ++ " ")
 
 interleave :: a -> [a] -> [a]
 interleave x [] = []
