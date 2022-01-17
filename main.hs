@@ -74,4 +74,26 @@ interleave x [] = []
 interleave x [y] = [y]
 interleave x (y:ys) = y : x : interleave x ys
 
+-- A valid move is one between 0 and n-1 in a blank position
+validMove :: Grid -> Int -> Bool
+validMove g i = 0 <= i && i < size^2 && concat g !! i == B
+
+move :: Grid -> Int -> Player -> Maybe Grid
+move g i p
+    | validMove g i = Just $ chop size (xs ++ [p] ++ ys)
+    | otherwise = Nothing
+    -- (concat g) converts the 2d grid into a 1d grid
+    where (xs,B:ys) = splitAt i (concat g)
+
+-- Converts a flat list into a 2d list
+chop :: Int -> [a] -> [[a]]
+chop n [] = []
+chop n xs = take n xs : chop n (drop n xs)
+
+
+
+
+
+
+
 
