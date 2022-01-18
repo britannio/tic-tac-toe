@@ -1,7 +1,7 @@
 import Data.Char (isDigit)
 import Data.List (transpose)
-import System.IO ()
 import Data.Maybe (fromMaybe)
+import System.IO ()
 
 -- Size of the tic-tac-toe grid.
 size :: Int
@@ -60,10 +60,11 @@ won g = wins O g || wins X g
 -- Output a grid to the console
 putGrid :: Grid -> IO ()
 putGrid = putStrLn . unlines . concat . interleave bar . map showRow
-  where bar = [swap 4 '┼' $ replicate ((size * 4) - 1) '─']
+  where
+    bar = [swap 4 '┼' $ replicate ((size * 4) - 1) '─']
 
 swap :: Show a => Int -> a -> [a] -> [a]
-swap n x = zipWith (\i x' -> if i `mod` n == 0 then x else x') [1..]
+swap n x = zipWith (\i x' -> if i `mod` n == 0 then x else x') [1 ..]
 
 showRow :: [Player] -> [String]
 showRow = (: []) . concat . interleave "│" . map (\x -> " " ++ showPlayer x ++ " ")
@@ -140,7 +141,7 @@ prompt :: Player -> String
 prompt p = "Player " ++ show p ++ ", enter your move: "
 
 data Tree a = Node a [Tree a]
-  deriving Show
+  deriving (Show)
 
 -- All possible grids that could play out
 gametree :: Grid -> Player -> Tree Grid
@@ -150,17 +151,29 @@ moves :: Grid -> Player -> [Grid]
 moves g p
   -- A player has won or all spaces are filled
   | won g || full g = []
-  | otherwise = map (\i -> fromMaybe [] (move g i p)) [0..((size^2) - 1)]
+  | otherwise = map (\i -> fromMaybe [] (move g i p)) [0 .. ((size ^ 2) - 1)]
 
 -- Limit a tree to a given depth
 prune :: Int -> Tree a -> Tree a
 prune 0 (Node x _) = Node x []
-prune n (Node x ts) = Node x $ map (prune (n-1)) ts
+prune n (Node x ts) = Node x $ map (prune (n -1)) ts
 
+-- Label a game tree
+minimax :: Tree Grid -> Tree (Grid, Player)
+minimax (Node g [])
+  | wins O g = Node (g, O) []
+  | wins X g = Node (g, X) []
+  | otherwise = Node (g,B) []
+minimax (Node g ts)
+  | turn g == O = Node (g,minimum ps) ts'
+  | turn g == X = Node (g,maximum ps) ts'
+  | otherwise = undefined
+  where
+    ts' = map minimax ts
+    ps = [p | Node (_,p) _ <- ts']
 
-
-
-
-
-
-
+bestmove :: Grid -> Player -> Grid
+bestmove g p = head [g' | Node (g', p') _ <- ts, p' == best]
+  where
+    tree = prune depth (gametree g p)
+    Node (_,best) ts = minimax tree
