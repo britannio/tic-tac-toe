@@ -1,10 +1,15 @@
 import Data.Char (isDigit)
 import Data.List (transpose)
 import System.IO ()
+import Data.Maybe (fromMaybe)
 
 -- Size of the tic-tac-toe grid.
 size :: Int
 size = 3
+
+-- Max depth of the generated game tree
+depth :: Int
+depth = 9
 
 empty :: Grid
 empty = replicate size (replicate size B)
@@ -16,12 +21,7 @@ data Player
   = O -- nought
   | B -- blank
   | X -- cross
-  deriving (Eq, Ord)
-
-instance Show Player where
-  show O = "O"
-  show B = " "
-  show X = "X"
+  deriving (Eq, Ord, Show)
 
 -- a NxN grid of Player values.
 type Grid = [[Player]]
@@ -63,10 +63,14 @@ putGrid = putStrLn . unlines . concat . interleave bar . map showRow
   where bar = [swap 4 '┼' $ replicate ((size * 4) - 1) '─']
 
 swap :: Show a => Int -> a -> [a] -> [a]
-swap n x = zipWith (\i x' -> if i `mod` n == 0 then x else x') [1..] 
+swap n x = zipWith (\i x' -> if i `mod` n == 0 then x else x') [1..]
 
 showRow :: [Player] -> [String]
-showRow = (: []) . concat . interleave "│" . map (\x -> " " ++ show x ++ " ")
+showRow = (: []) . concat . interleave "│" . map (\x -> " " ++ showPlayer x ++ " ")
+
+showPlayer :: Player -> String
+showPlayer B = " "
+showPlayer p = show p
 
 interleave :: a -> [a] -> [a]
 interleave x [] = []
@@ -134,3 +138,29 @@ run' g p
 
 prompt :: Player -> String
 prompt p = "Player " ++ show p ++ ", enter your move: "
+
+data Tree a = Node a [Tree a]
+  deriving Show
+
+-- All possible grids that could play out
+gametree :: Grid -> Player -> Tree Grid
+gametree g p = Node g (map (\g' -> gametree g' (next p)) (moves g p))
+
+moves :: Grid -> Player -> [Grid]
+moves g p
+  -- A player has won or all spaces are filled
+  | won g || full g = []
+  | otherwise = map (\i -> fromMaybe [] (move g i p)) [0..((size^2) - 1)]
+
+-- Limit a tree to a given depth
+prune :: Int -> Tree a -> Tree a
+prune 0 (Node x _) = Node x []
+prune n (Node x ts) = Node x $ map (prune (n-1)) ts
+
+
+
+
+
+
+
+
