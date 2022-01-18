@@ -1,11 +1,10 @@
 import Data.Char (isDigit)
 import Data.List (transpose)
-import Debug.Trace (trace)
 import System.IO ()
 
 -- Size of the tic-tac-toe grid.
 size :: Int
-size = 9
+size = 3
 
 empty :: Grid
 empty = replicate size (replicate size B)
@@ -61,12 +60,10 @@ won g = wins O g || wins X g
 -- Output a grid to the console
 putGrid :: Grid -> IO ()
 putGrid = putStrLn . unlines . concat . interleave bar . map showRow
-  where bar = [swap 3 '┼' $ replicate ((size * 4) - 1) '─']
+  where bar = [swap 4 '┼' $ replicate ((size * 4) - 1) '─']
 
 swap :: Show a => Int -> a -> [a] -> [a]
-swap n x xs | length xs <= n = xs
-swap n x xs = front ++ [x] ++ swap n x back
-  where (front, _ : back) = splitAt n xs
+swap n x = zipWith (\i x' -> if i `mod` n == 0 then x else x') [1..] 
 
 showRow :: [Player] -> [String]
 showRow = (: []) . concat . interleave "│" . map (\x -> " " ++ show x ++ " ")
