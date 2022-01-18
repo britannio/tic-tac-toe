@@ -1,7 +1,9 @@
 import Data.Char (isDigit)
 import Data.List (transpose)
-import Data.Maybe (fromMaybe)
-import System.IO ()
+import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe)
+import Debug.Trace (trace)
+import System.IO (BufferMode (NoBuffering), hSetBuffering, stdout)
+import Text.Printf (printf)
 
 -- Size of the tic-tac-toe grid.
 size :: Int
@@ -10,6 +12,69 @@ size = 3
 -- Max depth of the generated game tree
 depth :: Int
 depth = 9
+
+main :: IO ()
+main = do
+  hSetBuffering stdout NoBuffering
+  play empty O
+
+cls :: IO ()
+cls = putStr "\ESC[2J"
+
+type Pos = (Int, Int)
+
+goto :: Pos -> IO ()
+goto (x, y) = putStr ("\ESC[" ++ show y ++ ";" ++ show x ++ "H")
+
+-- Play against the computer
+play :: Grid -> Player -> IO ()
+play g p = do
+  cls
+  goto (1, 1)
+  putGrid g
+  play' g p
+
+play' :: Grid -> Player -> IO ()
+play' g p
+  | wins O g = putStrLn $ printf "Player %s wins!\n" (showPlayer O)
+  | wins X g = putStrLn $ printf "Player %s wins!\n" (showPlayer X)
+  | full g = putStrLn "It's a draw!\n"
+  | p == O = do
+    i <- getNat (prompt p)
+    case move g i p of
+      Nothing -> do
+        putStrLn "ERROR: Invalid move"
+        play' g p
+      Just g' -> play g' (next p)
+  | p == X = do
+    putStrLn $ printf "Player %s is thinking" (showPlayer X)
+    (play $! bestmove g p) (next p)
+  | otherwise = undefined
+
+-- Play against another person
+tictactoe :: IO ()
+tictactoe = run empty O
+
+run :: Grid -> Player -> IO ()
+run g p = do
+  cls
+  goto (1, 1)
+  putGrid g
+  run' g p
+
+run' :: Grid -> Player -> IO ()
+run' g p
+  | wins O g = putStrLn "Player O wins!\n"
+  | wins X g = putStrLn "Player X wins!\n"
+  | full g = putStrLn "It's a draw!\n"
+  | otherwise =
+    do
+      i <- getNat (prompt p)
+      case move g i p of
+        Nothing -> do
+          putStrLn "ERROR: Invalid move"
+          run' g p
+        Just g' -> run g' (next p)
 
 empty :: Grid
 empty = replicate size (replicate size B)
@@ -70,8 +135,9 @@ showRow :: [Player] -> [String]
 showRow = (: []) . concat . interleave "│" . map (\x -> " " ++ showPlayer x ++ " ")
 
 showPlayer :: Player -> String
+showPlayer O = "◯"
 showPlayer B = " "
-showPlayer p = show p
+showPlayer X = "×"
 
 interleave :: a -> [a] -> [a]
 interleave x [] = []
@@ -105,40 +171,8 @@ getNat prompt = do
       putStrLn "ERROR: Invalid number"
       getNat prompt
 
-tictactoe :: IO ()
-tictactoe = run empty O
-
-cls :: IO ()
-cls = putStr "\ESC[2J"
-
-type Pos = (Int, Int)
-
-goto :: Pos -> IO ()
-goto (x, y) = putStr ("\ESC[" ++ show y ++ ";" ++ show x ++ "H")
-
-run :: Grid -> Player -> IO ()
-run g p = do
-  cls
-  goto (1, 1)
-  putGrid g
-  run' g p
-
-run' :: Grid -> Player -> IO ()
-run' g p
-  | wins O g = putStrLn "Player O wins!\n"
-  | wins X g = putStrLn "Player X wins!\n"
-  | full g = putStrLn "It's a draw!\n"
-  | otherwise =
-    do
-      i <- getNat (prompt p)
-      case move g i p of
-        Nothing -> do
-          putStrLn "ERROR: Invalid move"
-          run' g p
-        Just g' -> run g' (next p)
-
 prompt :: Player -> String
-prompt p = "Player " ++ show p ++ ", enter your move: "
+prompt p = printf "Player %s, enter your move: " (showPlayer p)
 
 data Tree a = Node a [Tree a]
   deriving (Show)
@@ -151,7 +185,7 @@ moves :: Grid -> Player -> [Grid]
 moves g p
   -- A player has won or all spaces are filled
   | won g || full g = []
-  | otherwise = map (\i -> fromMaybe [] (move g i p)) [0 .. ((size ^ 2) - 1)]
+  | otherwise = mapMaybe (\i -> move g i p) [0 .. ((size ^ 2) - 1)]
 
 -- Limit a tree to a given depth
 prune :: Int -> Tree a -> Tree a
@@ -163,17 +197,17 @@ minimax :: Tree Grid -> Tree (Grid, Player)
 minimax (Node g [])
   | wins O g = Node (g, O) []
   | wins X g = Node (g, X) []
-  | otherwise = Node (g,B) []
+  | otherwise = Node (g, B) []
 minimax (Node g ts)
-  | turn g == O = Node (g,minimum ps) ts'
-  | turn g == X = Node (g,maximum ps) ts'
+  | turn g == O = Node (g, minimum ps) ts'
+  | turn g == X = Node (g, maximum ps) ts'
   | otherwise = undefined
   where
     ts' = map minimax ts
-    ps = [p | Node (_,p) _ <- ts']
+    ps = [p | Node (_, p) _ <- ts']
 
 bestmove :: Grid -> Player -> Grid
 bestmove g p = head [g' | Node (g', p') _ <- ts, p' == best]
   where
     tree = prune depth (gametree g p)
-    Node (_,best) ts = minimax tree
+    Node (_, best) ts = minimax tree
