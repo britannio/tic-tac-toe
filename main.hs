@@ -177,9 +177,27 @@ prompt p = printf "Player %s, enter your move: " (showPlayer p)
 data Tree a = Node a [Tree a]
   deriving (Show)
 
+countStates :: Tree Grid -> Int
+countStates (Node _ gs) = 1 + sum (map countStates gs)
+
 -- All possible grids that could play out
 gametree :: Grid -> Player -> Tree Grid
-gametree g p = Node g (map (\g' -> gametree g' (next p)) (moves g p))
+gametree g p = Node g (withNoRotations [gametree g' (next p) | g' <- moves g p])
+
+withNoRotations :: [Tree Grid] -> [Tree Grid]
+withNoRotations [] = []
+withNoRotations (g@(Node g'' _) : gs) = g : withNoRotations (filter notRotation gs)
+  where
+    notRotation :: Tree Grid -> Bool
+    notRotation (Node g' _) = g' /= rotate 1 g'' 
+                              && g' /= rotate 2 g'' 
+                              && g' /= rotate 3 g''
+
+rotate :: Int -> [[a]] -> [[a]]
+rotate n xs
+  | n == 0 || n == 4 = xs
+  | n < 0 = rotate (4 + n) xs
+  | otherwise = rotate (n-1) $ map reverse $ transpose xs
 
 moves :: Grid -> Player -> [Grid]
 moves g p
