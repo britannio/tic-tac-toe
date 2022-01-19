@@ -24,7 +24,7 @@ cls = putStr "\ESC[2J"
 type Pos = (Int, Int)
 
 goto :: Pos -> IO ()
-goto (x, y) = putStr ("\ESC[" ++ show y ++ ";" ++ show x ++ "H")
+goto (x, y) = putStr $ printf "\ESC[%d;%dH" y x
 
 -- Play against the computer
 play :: Grid -> Player -> IO ()
