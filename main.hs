@@ -1,5 +1,5 @@
 import Data.Char (isDigit)
-import Data.List (transpose)
+import Data.List (transpose, find)
 import Data.Maybe (catMaybes, fromJust, fromMaybe, isJust, mapMaybe)
 import Debug.Trace (trace)
 import System.IO (BufferMode (NoBuffering), hSetBuffering, stdout)
@@ -16,7 +16,8 @@ depth = 9
 main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
-  play empty O
+  let tree = gametree empty O
+  play tree O 
 
 cls :: IO ()
 cls = putStr "\ESC[2J"
@@ -27,15 +28,15 @@ goto :: Pos -> IO ()
 goto (x, y) = putStr $ printf "\ESC[%d;%dH" y x
 
 -- Play against the computer
-play :: Grid -> Player -> IO ()
-play g p = do
+play :: Tree Grid -> Player -> IO ()
+play (Node g gs) p = do
   cls
   goto (1, 1)
   putGrid g
-  play' g p
+  play' (Node g gs) p
 
-play' :: Grid -> Player -> IO ()
-play' g p
+play' :: Tree Grid -> Player -> IO ()
+play' x@(Node g gs) p
   | wins O g = putStrLn $ printf "Player %s wins!\n" (showPlayer O)
   | wins X g = putStrLn $ printf "Player %s wins!\n" (showPlayer X)
   | full g = putStrLn "It's a draw!\n"
@@ -44,12 +45,15 @@ play' g p
     case move g i p of
       Nothing -> do
         putStrLn "ERROR: Invalid move"
-        play' g p
-      Just g' -> play g' (next p)
+        play' x p
+      Just g' -> play (nodeTree g' gs) (next p)
   | p == X = do
     putStrLn $ printf "Player %s is thinking" (showPlayer X)
-    (play $! bestmove g p) (next p)
+    (play $! bestmove x p) (next p)
   | otherwise = undefined
+  
+nodeTree :: Grid -> [Tree Grid] -> Tree Grid
+nodeTree g' gs = fromJust (find (\(Node g'' _) -> g' == g'') gs)
 
 -- Play against another person
 tictactoe :: IO ()
@@ -224,8 +228,9 @@ minimax (Node g ts)
     ts' = map minimax ts
     ps = [p | Node (_, p) _ <- ts']
 
-bestmove :: Grid -> Player -> Grid
-bestmove g p = head [g' | Node (g', p') _ <- ts, p' == best]
+bestmove :: Tree Grid -> Player -> Tree Grid
+bestmove (Node g gs) p = nodeTree (head [g' | Node (g', p') _ <- ts, p' == best]) gs
   where
-    tree = prune depth (gametree g p)
-    Node (_, best) ts = minimax tree
+    -- tree = prune depth (gametree g p)
+    -- tree = gametree g p
+    Node (_, best) ts = minimax (Node g gs)
